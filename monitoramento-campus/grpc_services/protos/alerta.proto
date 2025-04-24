@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package alerta;
+
+service AlertaService {
+  rpc VerificarTemperatura (DadoSensor) returns (RespostaAlerta);
+}
+
+message DadoSensor {
+  string ambiente = 1;
+  float temperatura = 2;
+  string timestamp = 3;
+}
+
+message RespostaAlerta {
+  bool alerta = 1;
+  string mensagem = 2;
+}
