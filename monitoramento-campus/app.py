@@ -1,65 +1,53 @@
 import streamlit as st
-from kafka import KafkaConsumer
-import json
-import time
-from collections import deque
+import requests
 
-# --- Kafka Consumer Config ---
-consumer = KafkaConsumer(
-    'sensores.temperatura',
-    bootstrap_servers=['localhost:9092'],
-    auto_offset_reset='latest',
-    enable_auto_commit=True,
-    value_deserializer=lambda m: json.loads(m.decode('utf-8'))
-)
+API_URL = "http://localhost:5000"
 
-# --- Dados Temporários em Memória ---
-ultimas_mensagens = deque(maxlen=10)
-ultima_temp_por_ambiente = {}
-
-# --- Interface ---
 st.set_page_config(page_title="Painel de Monitoramento", layout="wide")
-st.title("📊 Painel de Monitoramento de Temperatura em Tempo Real")
+st.title("🌐 Painel com Flask API (Atualização automática a cada 5s)")
 
-# --- Placeholder da Interface ---
-placeholder = st.empty()
+# --- Função que busca os dados da API com cache de 5 segundos ---
+@st.cache_data(ttl=5)
+def fetch_dados():
+    res = requests.get(f"{API_URL}/leituras")
+    return res.json()
 
-# --- Loop contínuo de atualização ---
-for mensagem in consumer:
-    dados = mensagem.value
-    ambiente = dados.get("ambiente", "Desconhecido")
-    temperatura = dados.get("valor") or dados.get("temperatura")
-    timestamp = dados.get("timestamp", "")
+# --- Buscar dados ---
+try:
+    dados = fetch_dados()
+except Exception as e:
+    st.error(f"Erro ao conectar com a API Flask: {e}")
+    st.stop()
 
-    # Atualiza as estruturas
-    if temperatura is not None:
-        ultima_temp_por_ambiente[ambiente] = temperatura
-    ultimas_mensagens.append({
-        "ambiente": ambiente,
-        "temperatura": temperatura,
-        "timestamp": timestamp
-    })
+st.markdown("### 🟢 Backend Flask conectado")
 
-    with placeholder.container():
-        # Status do sistema
-        st.markdown("### 🟢 Sistema Ativo – Kafka conectado")
+# --- Exibir os dados por ambiente ---
+for ambiente, sensores in dados.items():
+    st.markdown(f"### 🏷️ {ambiente}")
+    col1, col2, col3 = st.columns(3)
 
-        # Layout: cards por ambiente
-        st.subheader("🌡️ Últimas Leituras por Ambiente")
-        colunas = st.columns(len(ultima_temp_por_ambiente) or 1)
+    temp = sensores.get("temperatura", "N/A")
+    lum = sensores.get("luminosidade", "N/A")
+    pres = sensores.get("presenca", "N/A")
 
-        for i, (amb, temp) in enumerate(ultima_temp_por_ambiente.items()):
-            status = "🔥" if temp > 28 else "✅"
-            colunas[i].metric(
-                label=f"{amb}",
-                value=f"{temp}°C",
-                delta="ALTA" if temp > 28 else "Normal"
-            )
+    col1.metric("🌡️ Temperatura", f"{temp}°C" if temp != "N/A" else temp,
+                delta="🔥" if isinstance(temp, (int, float)) and temp > 28 else "OK")
+    col2.metric("💡 Luminosidade", f"{lum} lux" if lum != "N/A" else lum)
+    col3.metric("🚶 Presença", "✅ Sim" if pres is True else "❌ Não" if pres is False else pres)
 
-        # Histórico dobrável
-        with st.expander("📋 Ver últimas 10 mensagens recebidas"):
-            for msg in reversed(ultimas_mensagens):
-                st.json(msg)
+    # --- Botões de comando ---
+    with st.expander(f"🎮 Controles de {ambiente}"):
+        if st.button("❄️ Ligar Ar", key=f"ar-{ambiente}"):
+            comando = {"ambiente": ambiente, "atuador": "ar_condicionado", "comando": "ligar"}
+            requests.post(f"{API_URL}/comando", json=comando)
+            st.success("Comando enviado")
 
-        st.info("Atualizando em 2 segundos...")
-        time.sleep(2)
+        if st.button("💡 Acender Luz", key=f"luz-{ambiente}"):
+            comando = {"ambiente": ambiente, "atuador": "luz", "comando": "ligar"}
+            requests.post(f"{API_URL}/comando", json=comando)
+            st.success("Comando enviado")
+
+        if st.button("🚨 Ativar Alarme", key=f"alarme-{ambiente}"):
+            comando = {"ambiente": ambiente, "atuador": "alarme", "comando": "ativar"}
+            requests.post(f"{API_URL}/comando", json=comando)
+            st.success("Comando enviado")

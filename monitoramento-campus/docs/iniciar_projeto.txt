@@ -1,0 +1,8 @@
+@echo off
+start "Kafka/Zookeeper" cmd /k "docker compose up -d"
+timeout /t 5
+start "Servidor gRPC" cmd /k "py -m grpc_services.servidor_alerta"
+start "Gateway UDP" cmd /k "py gateway/gateway_udp.py"
+start "Simulador Sala101" cmd /k "py simuladores/simulador_sala101.py"
+start "Consumidor Kafka" cmd /k "py grpc_services.consumidor_temperatura.py"
+start "Painel Streamlit" cmd /k "streamlit run app.py"
