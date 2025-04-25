@@ -16,22 +16,18 @@ Este projeto simula uma plataforma distribuída para **monitoramento e controle 
 
 ## ▶️ Como Executar
 
-# 1.Instale as dependências:
+1.Instale as dependências:
  
 pip install streamlit flask kafka-python requests
 
-# 2.Inicie os servidores
+2.Inicie os servidores
  
 docker compose up -d   # (para rodar o Kafka e Zookeeper)
 
-# Backend Flask
 python -m backend.server
 
-# Simulador
 python simuladores/simulador_sala101.py
 
-# Gateway UDP
 python gateway/gateway_udp.py
 
-# Painel de visualização
 streamlit run app.py
