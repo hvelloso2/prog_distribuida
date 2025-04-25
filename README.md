@@ -28,4 +28,4 @@ Este projeto simula uma plataforma distribuída para **monitoramento e controle 
 
 - python gateway/gateway_udp.py
 
-streamlit run app.py
+- streamlit run app.py
